@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voice-over Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f2f5f4; --surface: #ffffff; --ink: #16231f; --muted: #5d6b66;
+    --line: #d9e0dd; --accent: #0e6b50; --accent-ink: #ffffff; --danger: #b3261e;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.5 "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { padding: 28px 24px 8px; max-width: 980px; margin: 0 auto; }
+  h1 { margin: 0; font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; }
+  header p { margin: 4px 0 0; color: var(--muted); }
+  main { max-width: 980px; margin: 0 auto; padding: 16px 24px 48px;
+    display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
+  label { display: block; font-weight: 600; font-size: .9rem; margin-bottom: 6px; }
+  .hint { color: var(--muted); font-size: .85rem; }
+  textarea, input, select { width: 100%; font: inherit; color: inherit; background: #fff;
+    border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  textarea { min-height: 300px; resize: vertical; line-height: 1.6; }
+  textarea:focus-visible, input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible {
+    outline: 3px solid #8fd3bd; outline-offset: 1px; }
+  .row { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+  .field { margin-bottom: 18px; }
+  .field:last-child { margin-bottom: 0; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line);
+    background: #fff; color: var(--ink); padding: 8px 14px; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink);
+    font-weight: 600; width: 100%; padding: 12px 14px; }
+  button.primary:hover:not(:disabled) { filter: brightness(1.08); }
+  button:disabled { opacity: .55; cursor: not-allowed; }
+  .status { min-height: 1.4em; margin-top: 12px; font-size: .92rem; color: var(--muted); }
+  .status.error { color: var(--danger); }
+  .voice-meta { margin-top: 8px; display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+  .voice-meta span { color: var(--muted); font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  details summary { cursor: pointer; color: var(--muted); font-size: .9rem; }
+  details[open] summary { margin-bottom: 8px; }
+  .clips { grid-column: 1 / -1; }
+  .clips h2 { margin: 0 0 12px; font-size: 1.05rem; }
+  .clip { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; align-items: center;
+    padding: 14px 0; border-top: 1px solid var(--line); }
+  .clip:first-of-type { border-top: 0; padding-top: 0; }
+  .clip strong { font-weight: 600; }
+  .clip small { display: block; color: var(--muted); }
+  .clip audio { grid-column: 1 / -1; width: 100%; }
+  .clip a { color: var(--accent); font-weight: 600; text-decoration: none; border: 1px solid var(--accent);
+    border-radius: 8px; padding: 6px 12px; }
+  .empty { color: var(--muted); margin: 0; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Voice-over Studio</h1>
+  <p>Write your script, choose a voice, and download the audio.</p>
+</header>
+
+<main>
+  <section class="panel" aria-label="Script">
+    <label for="text">Script</label>
+    <textarea id="text" placeholder="Type or paste the text you want spoken."></textarea>
+    <div class="row">
+      <span class="hint" id="count">0 characters</span>
+      <button type="button" id="clear">Clear</button>
+    </div>
+  </section>
+
+  <aside class="panel" aria-label="Settings">
+    <div class="field">
+      <label for="q">Find a voice</label>
+      <div class="split">
+        <input id="q" type="search" placeholder="Name or keyword">
+        <select id="lang" aria-label="Language">
+          <option value="">Any language</option>
+          <option value="en">English</option>
+          <option value="yo">Yoruba</option>
+          <option value="ig">Igbo</option>
+          <option value="ha">Hausa</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="voice">Voice</label>
+      <select id="voice"><option value="">Loading voices…</option></select>
+      <div class="voice-meta">
+        <span id="voiceInfo"></span>
+        <button type="button" id="sample" hidden>Play sample</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <details>
+        <summary>Use a specific voice ID</summary>
+        <input id="manual" placeholder="Paste a voice ID from fish.audio">
+      </details>
+    </div>
+
+    <div class="field">
+      <label for="speed">Speed: <span id="speedOut">1.0×</span></label>
+      <input id="speed" type="range" min="0.5" max="2" step="0.05" value="1">
+    </div>
+
+    <div class="field">
+      <label for="format">File format</label>
+      <select id="format">
+        <option value="mp3">MP3 (smaller file)</option>
+        <option value="wav">WAV (studio quality)</option>
+      </select>
+    </div>
+
+    <button type="button" class="primary" id="go">Generate audio</button>
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+  </aside>
+
+  <section class="panel clips" aria-label="Generated audio">
+    <h2>Generated audio</h2>
+    <p class="empty" id="empty">Your audio will appear here. Clips are kept until you close this page, so download the ones you need.</p>
+    <div id="clips"></div>
+  </section>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const el = { text: $('#text'), count: $('#count'), clear: $('#clear'), q: $('#q'), lang: $('#lang'),
+  voice: $('#voice'), info: $('#voiceInfo'), sample: $('#sample'), manual: $('#manual'),
+  speed: $('#speed'), speedOut: $('#speedOut'), format: $('#format'), go: $('#go'),
+  status: $('#status'), clips: $('#clips'), empty: $('#empty') };
+
+let voices = [], maxChars = 5000, clipCount = 0;
+
+function setStatus(msg, isError = false) {
+  el.status.textContent = msg;
+  el.status.classList.toggle('error', isError);
+}
+
+function updateCount() {
+  const n = el.text.value.length;
+  el.count.textContent = `${n.toLocaleString()} / ${maxChars.toLocaleString()} characters`;
+  el.count.style.color = n > maxChars ? 'var(--danger)' : '';
+}
+
+async function loadVoices() {
+  el.voice.innerHTML = '<option value="">Loading voices…</option>';
+  try {
+    const params = new URLSearchParams({ q: el.q.value.trim(), language: el.lang.value });
+    const res = await fetch(`/api/voices?${params}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Could not load voices.');
+    voices = data;
+    el.voice.innerHTML = voices.length
+      ? voices.map((v, i) => `<option value="${i}">${escapeHtml(v.title)}</option>`).join('')
+      : '<option value="">No voices found. Try another search.</option>';
+    showVoice();
+    setStatus('');
+  } catch (err) {
+    voices = [];
+    el.voice.innerHTML = '<option value="">Voices unavailable</option>';
+    showVoice();
+    setStatus(err.message, true);
+  }
+}
+
+function currentVoice() { return voices[Number(el.voice.value)]; }
+
+function showVoice() {
+  const v = currentVoice();
+  el.info.textContent = v ? (v.languages.join(', ') || v.description) : '';
+  el.sample.hidden = !(v && v.sample);
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+async function generate() {
+  const text = el.text.value.trim();
+  if (!text) return setStatus('Enter some text to convert.', true);
+  if (text.length > maxChars) return setStatus(`Script is over the ${maxChars}-character limit. Split it into parts.`, true);
+
+  const manualId = el.manual.value.trim();
+  const voice = currentVoice();
+  const voiceId = manualId || (voice && voice.id) || '';
+  const voiceName = manualId ? 'Custom voice' : (voice ? voice.title : 'Default voice');
+  const format = el.format.value;
+
+  el.go.disabled = true;
+  setStatus('Generating audio…');
+  try {
+    const res = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, voiceId, format, speed: el.speed.value }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Audio generation failed.');
+    }
+    addClip(await res.blob(), { text, voiceName, format });
+    setStatus('Done. Your audio is ready below.');
+  } catch (err) {
+    setStatus(err.message, true);
+  } finally {
+    el.go.disabled = false;
+  }
+}
+
+function addClip(blob, { text, voiceName, format }) {
+  clipCount += 1;
+  const url = URL.createObjectURL(blob);
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  const preview = text.length > 70 ? text.slice(0, 70) + '…' : text;
+  const wrap = document.createElement('div');
+  wrap.className = 'clip';
+  wrap.innerHTML = `
+    <div><strong>${escapeHtml(preview)}</strong>
+      <small>${escapeHtml(voiceName)} · ${format.toUpperCase()} · ${(blob.size / 1024).toFixed(0)} KB</small></div>
+    <a href="${url}" download="voiceover-${stamp}-${clipCount}.${format}">Download</a>
+    <audio controls src="${url}"></audio>`;
+  el.clips.prepend(wrap);
+  el.empty.hidden = true;
+}
+
+let timer;
+el.q.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(loadVoices, 400); });
+el.lang.addEventListener('change', loadVoices);
+el.voice.addEventListener('change', showVoice);
+el.sample.addEventListener('click', () => { const v = currentVoice(); if (v && v.sample) new Audio(v.sample).play(); });
+el.speed.addEventListener('input', () => { el.speedOut.textContent = `${Number(el.speed.value).toFixed(2).replace(/0$/, '')}×`; });
+el.text.addEventListener('input', updateCount);
+el.clear.addEventListener('click', () => { el.text.value = ''; updateCount(); el.text.focus(); });
+el.go.addEventListener('click', generate);
+
+fetch('/api/config').then((r) => r.json()).then((c) => { maxChars = c.maxChars; updateCount(); }).catch(() => {});
+updateCount();
+loadVoices();
+</script>
+</body>
+</html>
