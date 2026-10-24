@@ -7,6 +7,20 @@ const MAX_CHARS = 5000;
 const engine = engines.get(process.env.TTS_ENGINE || 'fish');
 const app = express();
 
+
+// Optional password protection (HTTP Basic Auth). Enabled when ACCESS_PASSWORD is set.
+app.use((req, res, next) => {
+  const password = process.env.ACCESS_PASSWORD;
+  if (!password) return next();
+  const user = process.env.ACCESS_USER || 'admin';
+  const [scheme, encoded] = (req.headers.authorization || '').split(' ');
+  if (scheme === 'Basic' && encoded) {
+    const [u, ...rest] = Buffer.from(encoded, 'base64').toString().split(':');
+    if (u === user && rest.join(':') === password) return next();
+  }
+  res.set('WWW-Authenticate', 'Basic realm="Voice-over Studio"').status(401).send('Login required.');
+});
+
 app.use(express.json({ limit: '100kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
